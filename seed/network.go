@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/flokiorg/flnd/lnrpc"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

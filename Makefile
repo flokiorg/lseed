@@ -1,4 +1,4 @@
-PKG := github.com/lightninglabs/lseed
+PKG := github.com/flokiorg/lseed
 BINARY := lseed
 BUILD_DIR := build
 
