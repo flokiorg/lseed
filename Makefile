@@ -19,12 +19,12 @@ all: build
 ## Build lseed binary into ./build.
 build:
 	@echo "Building $(BINARY)..."
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) $(LDFLAGS) ./lseed.go
+	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) $(LDFLAGS) .
 
 ## Install binary to $GOBIN.
 install:
 	@echo "📦 Installing $(BINARY) to $$GOBIN..."
-	$(GOINSTALL) $(LDFLAGS) ./lseed.go
+	$(GOINSTALL) $(LDFLAGS) .
 
 ## Clean build artifacts.
 clean:
