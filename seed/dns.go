@@ -124,12 +124,12 @@ func (ds *DnsServer) locateChainView(subdomain string) *ChainView {
 }
 
 func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
-	subDomain string) {
+	subDomain string, clientIP string) {
 
-	log.Debugf("Handling AAAA query")
+	log.Debugf("Handling AAAA query from %s", clientIP)
 	chainView, ok := ds.chainViews[subDomain]
 	if !ok {
-		log.Errorf("no chain view found for %v", subDomain)
+		log.Debugf("no chain view found for %v (client: %s)", subDomain, clientIP)
 		return
 	}
 
@@ -140,12 +140,12 @@ func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 }
 
 func (ds *DnsServer) handleAQuery(request *dns.Msg, response *dns.Msg,
-	subDomain string) {
+	subDomain string, clientIP string) {
 
-	log.Debugf("Handling A query")
+	log.Debugf("Handling A query from %s", clientIP)
 	chainView, ok := ds.chainViews[subDomain]
 	if !ok {
-		log.Errorf("no chain view found for %v", subDomain)
+		log.Debugf("no chain view found for %v (client: %s)", subDomain, clientIP)
 		return
 	}
 
@@ -162,10 +162,10 @@ func (ds *DnsServer) handleAQuery(request *dns.Msg, response *dns.Msg,
 // client may either be IPv4 or IPv6, so just return a mix and let the
 // client figure it out.
 func (ds *DnsServer) handleSRVQuery(request *dns.Msg, response *dns.Msg,
-	subDomain string) {
+	subDomain string, clientIP string) {
 
-	log.Debugf("Handling SRV query")
-	log.Debugf("taget subdomain: %s", subDomain)
+	log.Debugf("Handling SRV query from %s", clientIP)
+	log.Debugf("target subdomain: %s (client: %s)", subDomain, clientIP)
 
 	var (
 		chainView *ChainView
@@ -198,7 +198,7 @@ func (ds *DnsServer) handleSRVQuery(request *dns.Msg, response *dns.Msg,
 	}
 
 	if chainView == nil {
-		log.Errorf("srv no chain view found for %v", subDomain)
+		log.Debugf("srv no chain view found for %v (client: %s)", subDomain, clientIP)
 		return
 	}
 
@@ -327,22 +327,25 @@ func (ds *DnsServer) parseRequest(name string, qtype uint16) (*DnsRequest, error
 }
 
 func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
+	// Extract client IP
+	clientIP := w.RemoteAddr().String()
 
 	if len(r.Question) < 1 {
-		log.Errorf("empty request")
+		log.Debugf("empty request from %s", clientIP)
 		return
 	}
 
 	req, err := ds.parseRequest(r.Question[0].Name, r.Question[0].Qtype)
 
 	if err != nil {
-		log.Errorf("error parsing request: %v", err)
+		log.Debugf("error parsing request from %s: %v", clientIP, err)
 		return
 	}
 
 	log.WithFields(log.Fields{
 		"subdomain": req.subdomain,
 		"type":      dns.TypeToString[req.qtype],
+		"client":    clientIP,
 	}).Debugf("Incoming request")
 
 	m := new(dns.Msg)
@@ -371,13 +374,13 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	case req.node_id == "":
 		switch req.qtype {
 		case dns.TypeAAAA:
-			ds.handleAAAAQuery(r, m, req.subdomain)
+			ds.handleAAAAQuery(r, m, req.subdomain, clientIP)
 			break
 		case dns.TypeA:
-			ds.handleAQuery(r, m, req.subdomain)
+			ds.handleAQuery(r, m, req.subdomain, clientIP)
 			break
 		case dns.TypeSRV:
-			ds.handleSRVQuery(r, m, req.subdomain)
+			ds.handleSRVQuery(r, m, req.subdomain, clientIP)
 		}
 
 	// If they're targeting a specific sub-domain (which targets a node on
@@ -386,7 +389,7 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	default:
 		chainView := ds.locateChainView(req.subdomain)
 		if chainView == nil {
-			log.Errorf("node query: no chain view found for %v", req.subdomain)
+			log.Debugf("node query: no chain view found for %v (client: %s)", req.subdomain, clientIP)
 			break
 		}
 
