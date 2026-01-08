@@ -20,7 +20,7 @@ import (
 	"github.com/flokiorg/go-flokicoin/chainutil/bech32"
 	"github.com/flokiorg/go-flokicoin/crypto"
 	"github.com/miekg/dns"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 type DnsServer struct {
@@ -89,7 +89,7 @@ func addAAAAResponse(n Node, name string, responses *[]dns.RR) {
 			Hdr:  header,
 			AAAA: a.IP.To16(),
 		}
-		log.Debugf("Adding AAAA response record: %s", name)
+		log.Debug().Str("name", name).Msg("Adding AAAA response record")
 		*responses = append(*responses, rr)
 	}
 }
@@ -126,10 +126,10 @@ func (ds *DnsServer) locateChainView(subdomain string) *ChainView {
 func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string, clientIP string) {
 
-	log.Debugf("Handling AAAA query from %s", clientIP)
+	log.Debug().Str("client", clientIP).Msg("Handling AAAA query")
 	chainView, ok := ds.chainViews[subDomain]
 	if !ok {
-		log.Debugf("no chain view found for %v (client: %s)", subDomain, clientIP)
+		log.Debug().Str("subdomain", subDomain).Str("client", clientIP).Msg("No chain view found")
 		return
 	}
 
@@ -142,10 +142,10 @@ func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 func (ds *DnsServer) handleAQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string, clientIP string) {
 
-	log.Debugf("Handling A query from %s", clientIP)
+	log.Debug().Str("client", clientIP).Msg("Handling A query")
 	chainView, ok := ds.chainViews[subDomain]
 	if !ok {
-		log.Debugf("no chain view found for %v (client: %s)", subDomain, clientIP)
+		log.Debug().Str("subdomain", subDomain).Str("client", clientIP).Msg("No chain view found")
 		return
 	}
 
@@ -164,8 +164,8 @@ func (ds *DnsServer) handleAQuery(request *dns.Msg, response *dns.Msg,
 func (ds *DnsServer) handleSRVQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string, clientIP string) {
 
-	log.Debugf("Handling SRV query from %s", clientIP)
-	log.Debugf("target subdomain: %s (client: %s)", subDomain, clientIP)
+	log.Debug().Str("client", clientIP).Msg("Handling SRV query")
+	log.Debug().Str("subdomain", subDomain).Str("client", clientIP).Msg("Target subdomain")
 
 	var (
 		chainView *ChainView
@@ -198,7 +198,7 @@ func (ds *DnsServer) handleSRVQuery(request *dns.Msg, response *dns.Msg,
 	}
 
 	if chainView == nil {
-		log.Debugf("srv no chain view found for %v (client: %s)", subDomain, clientIP)
+		log.Debug().Str("subdomain", subDomain).Str("client", clientIP).Msg("SRV no chain view found")
 		return
 	}
 
@@ -219,12 +219,12 @@ func (ds *DnsServer) handleSRVQuery(request *dns.Msg, response *dns.Msg,
 
 		convertedID, err := bech32.ConvertBits(rawID, 8, 5, true)
 		if err != nil {
-			log.Errorf("Unable to convert key=%x, %v", rawID, err)
+			log.Error().Err(err).Hex("key", rawID).Msg("Unable to convert key")
 			continue
 		}
 		encodedId, err := bech32.Encode("ln", convertedID)
 		if err != nil {
-			log.Errorf("Unable to encode key=%x, %v", convertedID, err)
+			log.Error().Err(err).Interface("key", convertedID).Msg("Unable to encode key")
 			continue
 		}
 
@@ -280,7 +280,7 @@ func (ds *DnsServer) parseRequest(name string, qtype uint16) (*DnsRequest, error
 	}
 	parts := strings.Split(req.subdomain, ".")
 
-	log.Debugf("Dispatching request for sub-domain %v", req.subdomain)
+	log.Debug().Str("subdomain", req.subdomain).Msg("Dispatching request")
 
 	// If they're attempting to pool for the IP address of the
 	// authoritative name server (us), then we'll return a slimmed down
@@ -331,22 +331,22 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	clientIP := w.RemoteAddr().String()
 
 	if len(r.Question) < 1 {
-		log.Debugf("empty request from %s", clientIP)
+		log.Debug().Str("client", clientIP).Msg("Empty request")
 		return
 	}
 
 	req, err := ds.parseRequest(r.Question[0].Name, r.Question[0].Qtype)
 
 	if err != nil {
-		log.Debugf("error parsing request from %s: %v", clientIP, err)
+		log.Debug().Err(err).Str("client", clientIP).Msg("Error parsing request")
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"subdomain": req.subdomain,
-		"type":      dns.TypeToString[req.qtype],
-		"client":    clientIP,
-	}).Debugf("Incoming request")
+	log.Debug().
+		Str("subdomain", req.subdomain).
+		Str("type", dns.TypeToString[req.qtype]).
+		Str("client", clientIP).
+		Msg("Incoming request")
 
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -356,7 +356,7 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	// IP address of the authoritative DNS server for fallback TCP
 	// purposes.
 	case strings.HasPrefix(req.subdomain, "soa"):
-		log.Debugf("Handling SOA request")
+		log.Debug().Msg("Handling SOA request")
 		soaResp := &dns.A{
 			Hdr: dns.RR_Header{
 				Rrtype: dns.TypeA,
@@ -389,13 +389,13 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	default:
 		chainView := ds.locateChainView(req.subdomain)
 		if chainView == nil {
-			log.Debugf("node query: no chain view found for %v (client: %s)", req.subdomain, clientIP)
+			log.Debug().Str("subdomain", req.subdomain).Str("client", clientIP).Msg("Node query: no chain view found")
 			break
 		}
 
 		n, ok := chainView.NetView.reachableNodes[req.node_id]
 		if !ok {
-			log.Debugf("Unable to find node with ID %s", req.node_id)
+			log.Debug().Str("node_id", req.node_id).Msg("Unable to find node")
 		}
 
 		// Reply with the correct type
@@ -407,9 +407,12 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	w.WriteMsg(m)
-	log.WithField("replies", len(m.Answer)).Debugf(
-		"Replying with %d answers and %d extras (len=%v)",
-		len(m.Answer), len(m.Extra), m.Len())
+	log.Debug().
+		Int("replies", len(m.Answer)).
+		Int("answers", len(m.Answer)).
+		Int("extras", len(m.Extra)).
+		Int("len", m.Len()).
+		Msg("Replying")
 }
 
 func (ds *DnsServer) Serve() {

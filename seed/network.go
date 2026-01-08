@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/flokiorg/flnd/lnrpc"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -109,7 +109,7 @@ func (nv *NetworkView) RandomSample(query NodeType, count int) []Node {
 	}
 
 	// fmt.Println("Num reachable nodes: %v", len(nv.reachableNodes))
-	log.Infof("Num reachable nodes: %v", len(nv.reachableNodes))
+	log.Info().Int("count", len(nv.reachableNodes)).Msg("Num reachable nodes")
 
 	return result
 }
@@ -195,15 +195,21 @@ func (nv *NetworkView) reachabilityPruner() {
 			// TODO(roasbeef): use brontide to ensure pubkey
 			// identity
 
-			log.Infof("Checking Node(%v) (%v) for reachability @ %v",
-				n.Id, nv.chain, addr.String())
+			log.Info().
+				Str("node_id", n.Id).
+				Str("chain", nv.chain).
+				Str("addr", addr.String()).
+				Msg("Checking node for reachability")
 
 			tcpConn, err := net.DialTimeout(
 				"tcp", addr.String(), dialTimeoutDuration,
 			)
 			if err != nil {
-				log.Infof("Unable to reach %v via %v: %v", n.Id,
-					addr, err)
+				log.Info().
+					Err(err).
+					Str("node_id", n.Id).
+					Str("addr", addr.String()).
+					Msg("Unable to reach node")
 				if tcpConn != nil {
 					tcpConn.Close()
 				}
@@ -236,8 +242,11 @@ func (nv *NetworkView) reachabilityPruner() {
 
 		validAddrs := reachableAddrs(newNode)
 		if len(validAddrs) == 0 {
-			log.Infof("Node(%v) (%v) has no reachable addresses, "+
-				"prune=%v", newNode.Id, nv.chain, prune)
+			log.Info().
+				Str("node_id", newNode.Id).
+				Str("chain", nv.chain).
+				Bool("prune", prune).
+				Msg("Node has no reachable addresses")
 
 			// If prune is no, then if this node has no more
 			// reachable addresses, we'll remove it from out set of
@@ -255,8 +264,11 @@ func (nv *NetworkView) reachabilityPruner() {
 
 		nv.Lock()
 		nv.reachableNodes[newNode.Id] = newNode
-		log.Infof("Node(%v) (%v) is reachable number of reachable "+
-			"nodes: %v", newNode.Id, nv.chain, len(nv.reachableNodes))
+		log.Info().
+			Str("node_id", newNode.Id).
+			Str("chain", nv.chain).
+			Int("reachable_count", len(nv.reachableNodes)).
+			Msg("Node is reachable")
 		nv.Unlock()
 	}
 
@@ -287,7 +299,7 @@ func (nv *NetworkView) reachabilityPruner() {
 		// move nodes from allNodes to reachableNodes, and also see if
 		// there are any nodes marked reachable which no longer are.
 		case <-pruneTicker.C:
-			log.Infof("Pruning %v nodes for reachability", nv.chain)
+			log.Info().Str("chain", nv.chain).Msg("Pruning nodes for reachability")
 
 			// First, we'll check to see if any of the nodes that
 			// are within the allNodes, but not reachableNodes map
@@ -323,8 +335,10 @@ func (nv *NetworkView) reachabilityPruner() {
 			}
 
 			nv.Lock()
-			log.Infof("Total number of reachable %v nodes: %v",
-				nv.chain, len(nv.reachableNodes))
+			log.Info().
+				Str("chain", nv.chain).
+				Int("count", len(nv.reachableNodes)).
+				Msg("Total number of reachable nodes")
 			seenNodes = make(map[string]struct{})
 			nv.Unlock()
 		}

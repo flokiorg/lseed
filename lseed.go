@@ -22,7 +22,8 @@ import (
 	"github.com/flokiorg/flnd/macaroons"
 	"github.com/flokiorg/go-flokicoin/chainutil"
 	"github.com/flokiorg/lseed/seed"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -117,16 +118,16 @@ func poller(lnd lnrpc.LightningClient, nview *seed.NetworkView, pollInterval int
 			return
 		}
 
-		log.Debugf("Got %d nodes from lnd", len(graph.Nodes))
+		log.Debug().Int("count", len(graph.Nodes)).Msg("Got nodes from lnd")
 		for _, node := range graph.Nodes {
 			if len(node.Addresses) == 0 {
 				continue
 			}
 
 			if _, err := nview.AddNode(node); err != nil {
-				log.Debugf("Unable to add node: %v", err)
+				log.Debug().Err(err).Msg("Unable to add node")
 			} else {
-				log.Debugf("Adding node: %v", node.Addresses)
+				log.Debug().Interface("addresses", node.Addresses).Msg("Adding node")
 			}
 		}
 	}
@@ -142,11 +143,11 @@ func poller(lnd lnrpc.LightningClient, nview *seed.NetworkView, pollInterval int
 // Parse flags and configure subsystems according to flags
 func configure(cfg *Config) {
 	if cfg.Debug {
-		log.SetLevel(log.DebugLevel)
-		log.Infof("Logging on level Debug")
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		log.Info().Msg("Logging on level Debug")
 	} else {
-		log.SetLevel(log.InfoLevel)
-		log.Infof("Logging on level Info")
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		log.Info().Msg("Logging on level Info")
 	}
 }
 
@@ -156,7 +157,7 @@ func initChain(name string, cfg ChainConfig, pollInterval int) (*seed.ChainView,
 		return nil, fmt.Errorf("missing connection details for chain: %s", name)
 	}
 
-	log.Infof("Creating %s chain view", name)
+	log.Info().Str("chain", name).Msg("Creating chain view")
 
 	lndNode, err := initLightningClient(
 		cfg.Host, cfg.TLSPath, cfg.MacaroonPath,
@@ -168,7 +169,7 @@ func initChain(name string, cfg ChainConfig, pollInterval int) (*seed.ChainView,
 	nView := seed.NewNetworkView(name)
 	go poller(lndNode, nView, pollInterval)
 
-	log.Infof("%s chain view active", name)
+	log.Info().Str("chain", name).Msg("Chain view active")
 
 	return &seed.ChainView{
 		NetView: nView,
@@ -178,25 +179,42 @@ func initChain(name string, cfg ChainConfig, pollInterval int) (*seed.ChainView,
 
 // Main entry point for the lightning-seed
 func main() {
-	log.SetOutput(os.Stdout)
+	// Setup beautiful console output for zerolog
+	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05"}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+	output.FormatMessage = func(i interface{}) string {
+		return fmt.Sprintf("%-50s", i)
+	}
+	output.FormatFieldName = func(i interface{}) string {
+		return fmt.Sprintf("%s:", i)
+	}
+	output.FormatFieldValue = func(i interface{}) string {
+		return fmt.Sprintf("%s", i)
+	}
+	log.Logger = zerolog.New(output).With().Timestamp().Logger()
+
 	flag.Parse()
 
 	cfg, err := loadConfig(*configFile)
 	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
+		log.Fatal().Err(err).Msg("Failed to load config")
 	}
 
 	configure(cfg)
 
 	go func() {
-		log.Println(http.ListenAndServe(":9091", nil))
+		if err := http.ListenAndServe(":9091", nil); err != nil {
+			log.Error().Err(err).Msg("pprof server failed")
+		}
 	}()
 
 	netViewMap := make(map[string]*seed.ChainView)
 
 	// Initialize Flokicoin (Mandatory)
 	if cfg.Flokicoin.Host == "" {
-		panic("Flokicoin configuration is missing")
+		log.Fatal().Msg("Flokicoin configuration is missing")
 	}
 	// Flokicoin usually maps to the root domain, so empty prefix + dot = ""
 	// If the user provided a prefix, we use it.
@@ -209,7 +227,7 @@ func main() {
 
 	flokiView, err := initChain("flokicoin", cfg.Flokicoin, cfg.PollInterval)
 	if err != nil {
-		panic(fmt.Sprintf("failed to initialize Flokicoin chain: %v", err))
+		log.Fatal().Err(err).Msg("Failed to initialize Flokicoin chain")
 	}
 	netViewMap[flokiPrefix] = flokiView
 
@@ -218,18 +236,18 @@ func main() {
 		// Ensure prefix is set for altchains to avoid collision with root
 		prefix := altCfg.PrefixRootDomain
 		if prefix == "" {
-			panic(fmt.Sprintf("AltChain %s must have a prefix_root_domain", altCfg.Name))
+			log.Fatal().Str("chain", altCfg.Name).Msg("AltChain must have a prefix_root_domain")
 		}
 
 		altView, err := initChain(altCfg.Name, altCfg, cfg.PollInterval)
 		if err != nil {
-			panic(fmt.Sprintf("failed to initialize %s chain: %v", altCfg.Name, err))
+			log.Fatal().Err(err).Str("chain", altCfg.Name).Msg("Failed to initialize chain")
 		}
 		netViewMap[prefix+"."] = altView
 	}
 
 	if len(netViewMap) == 0 {
-		panic(fmt.Sprintf("must specify at least one node type"))
+		log.Fatal().Msg("Must specify at least one node type")
 	}
 
 	rootIP := net.ParseIP(cfg.AuthoritativeIP)

@@ -6,7 +6,7 @@ require (
 	github.com/flokiorg/flnd v0.1.10-beta
 	github.com/flokiorg/go-flokicoin v0.25.11-alpha
 	github.com/miekg/dns v1.1.63
-	github.com/sirupsen/logrus v1.9.3
+	github.com/rs/zerolog v1.34.0
 	google.golang.org/grpc v1.71.0
 	gopkg.in/macaroon.v2 v2.0.0
 )
@@ -89,6 +89,7 @@ require (
 	github.com/lightningnetwork/lnd/ticker v1.1.1 // indirect
 	github.com/lightningnetwork/lnd/tlv v1.3.1 // indirect
 	github.com/ltcsuite/ltcd v0.0.0-20190101042124-f37f8bf35796 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -108,6 +109,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
