@@ -179,22 +179,7 @@ func initChain(name string, cfg ChainConfig, pollInterval int) (*seed.ChainView,
 
 // Main entry point for the lightning-seed
 func main() {
-	// Setup beautiful console output for zerolog
-	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05"}
-	output.FormatLevel = func(i interface{}) string {
-		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-	}
-	output.FormatMessage = func(i interface{}) string {
-		return fmt.Sprintf("%-50s", i)
-	}
-	output.FormatFieldName = func(i interface{}) string {
-		return fmt.Sprintf("%s:", i)
-	}
-	output.FormatFieldValue = func(i interface{}) string {
-		return fmt.Sprintf("%s", i)
-	}
-	log.Logger = zerolog.New(output).With().Timestamp().Logger()
-
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.DateTime}).With().Timestamp().Logger()
 	flag.Parse()
 
 	cfg, err := loadConfig(*configFile)
