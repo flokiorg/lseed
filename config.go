@@ -14,6 +14,7 @@ type ChainConfig struct {
 	Host             string `toml:"host"`
 	TLSPath          string `toml:"tls_path"`
 	MacaroonPath     string `toml:"macaroon_path"`
+	Port             int    `toml:"port"` // Lightning Network port for this chain (required, no default)
 }
 
 // Config defines the global configuration for the application.
@@ -52,6 +53,18 @@ func loadConfig(path string) (*Config, error) {
 
 	if _, err := toml.DecodeFile(path, cfg); err != nil {
 		return nil, fmt.Errorf("failed to decode config file: %v", err)
+	}
+
+	// Validate Flokicoin port is set
+	if cfg.Flokicoin.Port == 0 {
+		return nil, fmt.Errorf("flokicoin.port is required and must be set (e.g., 5521 for Flokicoin)")
+	}
+
+	// Validate all altchain ports are set
+	for i, altChain := range cfg.AltChains {
+		if altChain.Port == 0 {
+			return nil, fmt.Errorf("alt_chains[%d] (%s) port is required and must be set", i, altChain.Name)
+		}
 	}
 
 	return cfg, nil

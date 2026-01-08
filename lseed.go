@@ -166,7 +166,7 @@ func initChain(name string, cfg ChainConfig, pollInterval int) (*seed.ChainView,
 		return nil, fmt.Errorf("unable to connect to %s lnd: %v", name, err)
 	}
 
-	nView := seed.NewNetworkView(name)
+	nView := seed.NewNetworkView(name, cfg.Port)
 	go poller(lndNode, nView, pollInterval)
 
 	log.Info().Str("chain", name).Msg("Chain view active")

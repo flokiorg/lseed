@@ -16,12 +16,7 @@ import (
 )
 
 const (
-	// defaultPort is the default port for lightning nodes. A and AAAA
-	// queries only return nodes that listen to this port, SRV queries can
-	// actually specify a port, so they return all nodes.
-	defaultPort = 9735
-
-	// dialTimeoutDurationis the default duration that we'll wait until we
+	// dialTimeoutDuration is the default duration that we'll wait until we
 	// determine that we can't reach an address from dialing.
 	dialTimeoutDuration = time.Second * 5
 )
@@ -56,6 +51,7 @@ type NetworkView struct {
 	sync.Mutex
 
 	chain string
+	port  int // Lightning Network port for this chain
 
 	allNodes map[string]Node
 
@@ -65,9 +61,10 @@ type NetworkView struct {
 }
 
 // NewNetworkView creates a new instance of a NetworkView.
-func NewNetworkView(chain string) *NetworkView {
+func NewNetworkView(chain string, port int) *NetworkView {
 	n := &NetworkView{
 		chain:          chain,
+		port:           port,
 		allNodes:       make(map[string]Node),
 		reachableNodes: make(map[string]Node),
 		freshNodes:     make(chan Node, 100),
@@ -123,12 +120,12 @@ func (nv *NetworkView) AddNode(node *lnrpc.LightningNode) (*Node, error) {
 	}
 
 	for _, netAddr := range node.Addresses {
-		// If the address doesn't already have a port, we'll assume the
-		// current default port.
+		// If the address doesn't already have a port, we'll use the
+		// configured port for this chain.
 		var addr string
 		_, _, err := net.SplitHostPort(netAddr.Addr)
 		if err != nil {
-			addr = net.JoinHostPort(netAddr.Addr, strconv.Itoa(defaultPort))
+			addr = net.JoinHostPort(netAddr.Addr, strconv.Itoa(nv.port))
 		} else {
 			addr = netAddr.Addr
 		}
@@ -144,7 +141,7 @@ func (nv *NetworkView) AddNode(node *lnrpc.LightningNode) (*Node, error) {
 			n.Type |= 1 << 2
 		}
 
-		if parsedAddr.Port == defaultPort {
+		if parsedAddr.Port == nv.port {
 			n.Type |= 1 << 1
 		}
 
