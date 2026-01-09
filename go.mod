@@ -3,7 +3,7 @@ module github.com/flokiorg/lseed
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/flokiorg/flnd v0.1.12-beta
+	github.com/flokiorg/flnd v0.1.14-beta
 	github.com/flokiorg/go-flokicoin v0.25.12-alpha
 	github.com/miekg/dns v1.1.63
 	github.com/rs/zerolog v1.34.0
