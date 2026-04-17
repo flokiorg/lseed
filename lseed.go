@@ -31,7 +31,7 @@ var (
 )
 
 var (
-	lndHomeDir = chainutil.AppDataDir("lnd", false)
+	lndHomeDir = chainutil.AppDataDir("flnd", false)
 
 	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 50)
 )
