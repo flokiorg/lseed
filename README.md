@@ -19,7 +19,7 @@ IPv4 nodes and IPv6 nodes, and their associated `A` and `AAAA` answers.
 
 The seed answers incoming `A` and `AAAA` queries with up to 25 known nodes in
 the network.  The nodes are filtered by their listening port, and only nodes
-that listen on the default Lightning port, 9735, are returned.  This is
+that listen on the default Lightning port, 5521, are returned.  This is
 necessary since it is not possible to specify the port in `A` and `AAAA`
 answers.
 
