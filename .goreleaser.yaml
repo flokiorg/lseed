@@ -1,0 +1,120 @@
+version: 2
+
+project_name: lseed
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  # This binary reports no version of its own, and the previous release tooling
+  # injected none either, so there is nothing to set here beyond stripping the
+  # binary. The released version lives in CHANGELOG.md and the git tag.
+  - id: lseed
+    main: .
+    binary: lseed
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    # The platform set the previous release tooling shipped, kept
+    # target for target so no published platform is dropped.
+    targets: &targets
+      - darwin_amd64
+      - darwin_arm64
+      - freebsd_amd64
+      - linux_386
+      - linux_amd64
+      - linux_arm64
+      - linux_mips
+      - linux_mips64
+      - linux_mipsle
+      - linux_ppc64
+      - linux_ppc64le
+      - windows_386
+      - windows_amd64
+
+archives:
+  # One archive per binary per platform, matching the asset names the
+  # previous tooling produced so existing download URLs keep their
+  # shape: <name>-<os>-<arch>-v<version>.tar.gz (.zip on Windows).
+  - id: lseed
+    ids:
+      - lseed
+    name_template: "lseed-{{ .Os }}-{{ .Arch }}-v{{ .Version }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+
+
+# Hand-rolled per-arch builds stitched into one manifest, rather than
+# dockers_v2: the v2 pipe has produced intermittent "failed to calculate
+# checksum of ref" COPY failures in CI elsewhere in this org.
+dockers:
+  - id: lseed-amd64
+    ids:
+      - lseed
+    dockerfile: Dockerfile.release
+    use: buildx
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/flokiorg/lseed:{{ .Version }}-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.source=https://github.com/flokiorg/lseed"
+
+  - id: lseed-arm64
+    ids:
+      - lseed
+    dockerfile: Dockerfile.release
+    use: buildx
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/flokiorg/lseed:{{ .Version }}-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.source=https://github.com/flokiorg/lseed"
+
+docker_manifests:
+  - name_template: "ghcr.io/flokiorg/lseed:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/flokiorg/lseed:{{ .Version }}-amd64"
+      - "ghcr.io/flokiorg/lseed:{{ .Version }}-arm64"
+
+  # skip_push: auto leaves :latest alone for a pre-release, so pulling
+  # ghcr.io/flokiorg/lseed can never resolve to a pre-release build.
+  - name_template: "ghcr.io/flokiorg/lseed:latest"
+    skip_push: auto
+    image_templates:
+      - "ghcr.io/flokiorg/lseed:{{ .Version }}-amd64"
+      - "ghcr.io/flokiorg/lseed:{{ .Version }}-arm64"
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: flokiorg
+    name: lseed
+  # Re-running a release replaces the assets rather than erroring.
+  mode: replace
+  # A version with a pre-release suffix is published as a GitHub prerelease.
+  prerelease: auto
+
+# Deliberately no `changelog:` block. GoReleaser loads --release-notes through
+# the same pipe it uses for changelog generation, so disabling that pipe
+# silently publishes an empty release body. The notes come from CHANGELOG.md via
+# --release-notes in .github/workflows/release.yml.

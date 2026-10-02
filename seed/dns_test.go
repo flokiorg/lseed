@@ -55,11 +55,11 @@ func TestParseRequest(t *testing.T) {
 		req, err := ds.parseRequest(tt.in.name, tt.in.qtype)
 
 		if err != nil && tt.out != nil {
-			t.Errorf("unexpected error %q => %q, want %q, %v", tt.in, req, tt.out, err)
+			t.Errorf("unexpected error %+v => %#v, want %#v, %v", tt.in, req, tt.out, err)
 		} else if !reflect.DeepEqual(req, tt.out) {
 			spew.Dump(req)
 			spew.Dump(tt.out)
-			t.Errorf("parser error %q => %#v, want %#v", tt.in, req, tt.out)
+			t.Errorf("parser error %+v => %#v, want %#v", tt.in, req, tt.out)
 		}
 	}
 }
