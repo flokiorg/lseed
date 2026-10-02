@@ -440,7 +440,9 @@ func (ds *DnsServer) Serve() {
 				"server: %s\n", err.Error()))
 		}
 	}()
-	quitChan := make(chan os.Signal)
+	// Buffered: signal.Notify does not block sending, so an unbuffered
+	// channel can miss a signal that arrives before the receive below.
+	quitChan := make(chan os.Signal, 1)
 	signal.Notify(quitChan, syscall.SIGINT, syscall.SIGTERM)
 	<-quitChan
 }
