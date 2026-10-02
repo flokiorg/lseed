@@ -1,0 +1,72 @@
+version: 2
+
+project_name: lseed
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  # This binary reports no version of its own, and the previous release tooling
+  # injected none either, so there is nothing to set here beyond stripping the
+  # binary. The released version lives in CHANGELOG.md and the git tag.
+  - id: lseed
+    main: .
+    binary: lseed
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    # The platform set the previous release tooling shipped, kept
+    # target for target so no published platform is dropped.
+    targets: &targets
+      - darwin_amd64
+      - darwin_arm64
+      - freebsd_amd64
+      - linux_386
+      - linux_amd64
+      - linux_arm64
+      - linux_mips
+      - linux_mips64
+      - linux_mipsle
+      - linux_ppc64
+      - linux_ppc64le
+      - windows_386
+      - windows_amd64
+
+archives:
+  # One archive per binary per platform, matching the asset names the
+  # previous tooling produced so existing download URLs keep their
+  # shape: <name>-<os>-<arch>-v<version>.tar.gz (.zip on Windows).
+  - id: lseed
+    ids:
+      - lseed
+    name_template: "lseed-{{ .Os }}-{{ .Arch }}-v{{ .Version }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: flokiorg
+    name: lseed
+  # Re-running a release replaces the assets rather than erroring.
+  mode: replace
+  # A version with a pre-release suffix is published as a GitHub prerelease.
+  prerelease: auto
+
+# Deliberately no `changelog:` block. GoReleaser loads --release-notes through
+# the same pipe it uses for changelog generation, so disabling that pipe
+# silently publishes an empty release body. The notes come from CHANGELOG.md via
+# --release-notes in .github/workflows/release.yml.
