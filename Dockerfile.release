@@ -1,0 +1,15 @@
+# Image used by the release workflow. Unlike Dockerfile, this one does not
+# compile anything: GoReleaser has already cross-compiled the binary and runs
+# `docker build` with dist/ as the context, so the binary is simply copied in.
+# That keeps the published image and the published archives the same build.
+#
+# Dockerfile stays as it is for building an image straight from a source
+# checkout.
+#
+# distroless/static already ships ca-certificates, which the builder stage in
+# Dockerfile has to copy in by hand.
+FROM gcr.io/distroless/static-debian12
+
+COPY lseed /lseed
+
+ENTRYPOINT ["/lseed"]
